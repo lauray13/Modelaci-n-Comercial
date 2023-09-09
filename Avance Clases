@@ -1,0 +1,503 @@
+
+# TEMA 01: Carga de datos ----
+
+## Carga local ----
+
+DF <- read.csv(file = "Personalidad y uso de apps (respuestas) - Respuestas de formulario 1.csv",
+               check.names = F)
+
+## Carga en línea ----
+install.packages("gsheet")
+library(gsheet)
+
+url_google <- "https://docs.google.com/spreadsheets/d/1IQ_RxxTSmBKHTExlxboIRNlMov_F6RyqdcOPrflCv_w/edit?usp=sharing"
+
+DF <- read.csv(text = gsheet2text(url = url_google),
+               check.names = F)
+
+## METER LA BASE DE DATO DE OTRA FORMA = DF <- read.csv(text = gsheet2text(url = "https://docs.google.com/spreadsheets/d/1IQ_RxxTSmBKHTExlxboIRNlMov_F6RyqdcOPrflCv_w/edit?usp=sharing"),
+##                                      check.names = F)
+
+## Estructura de un data frame
+class(DF)
+class(DF$`Escribe tu edad exacta`)
+nrow(DF)
+ncol(DF)
+
+##CALCULAR EL PROMEDIO DE LA VARIABLE EDAD
+
+## Transformación del data frame ----
+
+## Valores perdidos (NA) ----
+
+DF$`Escribe tu edad exacta`
+is.na(DF$`Escribe tu edad exacta`) ## Para identificar los NA
+summary(is.na(DF$`Escribe tu edad exacta`))## Un resumen y que te diga cuales son
+
+
+## Reemplazo de valores perdidos (NA) por la media
+
+install.packages("tidyverse")
+library(tidyverse)
+
+ifelse(test = is.na(DF$`Escribe tu edad exacta`),
+       yes= mean(DF$`Escribe tu edad exacta`,na.rm = T),
+       no= DF$`Escribe tu edad exacta`)
+
+DF2 <- DF %>% 
+  mutate(edad2=ifelse(test = is.na(`Escribe tu edad exacta`),
+                                  yes= mean(`Escribe tu edad exacta`,na.rm = T),
+                                  no= `Escribe tu edad exacta`)) %>% 
+  relocate(edad2,.after = `Escribe tu edad exacta`)
+
+
+## Eliminar filas completas en el DF
+
+DF2 <- DF2 %>% na.omit() 
+
+## Estandarizaciones ----
+## Es para combinar 2 variables con diferentes unidades de medidas
+
+## Normalización 
+
+scale(DF2$`Escribe tu edad exacta`)
+
+mean(DF2$`Escribe tu edad exacta`)
+
+tibble(
+  original = DF2$`Escribe tu edad exacta`,
+  normalizada = scale(DF2$`Escribe tu edad exacta`)
+) %>% print(n= 20) ## Es para mostrar más valores en la tablita de tibble
+
+
+## Convirtiendo el DF en tibble
+
+DF2 <- DF2 %>% as_tibble()
+
+## Rango
+library(scales)
+
+tibble(
+  original = DF2$`Escribe tu edad exacta`,
+  rango = rescale(DF2$`Escribe tu edad exacta`)
+) %>% print(n= 10)
+
+min(DF2$`Escribe tu edad exacta`)
+max(DF2$`Escribe tu edad exacta`)
+
+
+## Agrupaciones ----
+
+## Variables númericas
+
+cut(DF2$`Escribe tu edad exacta`,
+    breaks = c(-Inf, 18, 23, Inf),
+    labels = c("18 o menos", "19 a 23", "Más de 23"))
+
+## Visualizar un tibble con 2 columnas:
+## edad = variable original
+## edad.gr = edad agrupada
+
+tibble(
+  edad    = DF2$`Escribe tu edad exacta`,
+  edad.gr = cut(DF2$`Escribe tu edad exacta`,
+                breaks = c(-Inf, 18, 23, Inf),
+                labels = c("18 o menos", "19 a 23", "Más de 23"))
+) %>% print(n = 20)
+
+
+## Crear un DF4 que contenga todo el DF2 + 1 nueva columna
+## llamada edad.gr y reubicarla al lado de edad 2
+
+DF4 <- DF2 %>% 
+  mutate(edad.gr = cut(DF2$`Escribe tu edad exacta`,
+                         breaks = c(-Inf, 18, 23, Inf),
+                         labels = c("18 o menos", "19 a 23", "Más de 23"))) %>% 
+  relocate(edad.gr,.after = edad2)
+
+## Variables categóricas
+
+unique(DF4[,9])
+
+tibble(
+  original = DF4[,9],
+  categorizada = ifelse(
+    test = DF4[,9] == "Totalmente verdadero" |
+      DF4[,9] == "Un poco verdadero",
+    yes = "SI",
+    no  = "NO"
+  )
+)
+
+## BUCLES
+
+## PASO 1: CREAR UN VECTOR: Este tiene que contener el nombre de las variables
+## donde se aplicará el bucle
+## vectores se crean c()
+
+frases <- colnames(DF4)[8:31]
+frases
+
+## Como el bucle sobreescribe el DF se creara otro DF nuevo
+
+DF5 <- DF4
+
+## PASO 2: CREAR EL BUCLE
+
+for (variable in frases) {
+  DF5[,variable] <- ifelse(
+    test = DF5[,variable] == "Totalmente verdadero" |
+      DF5[,variable] == "Un poco verdadero",
+    yes = 1,
+    no  = 0
+  )
+}
+
+## Ejemplo de prueba de hacer un calculo con un vector
+
+vector <- c(1:10)
+
+vector
+
+for(element in vector){
+  print(vector[element]*2)
+}
+
+## Manipulación de data frame ----
+
+## Función select: columnas ----
+
+DF5 %>% select(Sexo)
+
+##Otra forma sin el paquete tidyverse
+
+DF5[,"Sexo"]
+
+DF5 %>% select(Sexo, `Escribe tu edad exacta`)
+
+DF5[,c("Sexo", "Escribe tu edad exacta")]
+
+## Para eliminar una columna se hace uso del "-":
+
+DF5 %>% select(-`Marca temporal`)
+
+## Para eliminar más de una:
+
+DF5 %>% select(!c(`Marca temporal`,`¿Estás estudiando en algún colegio, universidad o instituto?`))
+
+## Helpers que solo funcionan en "select"
+
+DF5 %>% select(starts_with("edad")) ## Buscar los que empiezan con
+
+DF5 %>% select(ends_with("00")) ## Buscar los que terminan en
+
+DF5 %>% select(contains("edad")) ## Buscar los que solo contengan 
+
+##Función filter: filas ----
+
+##Filtrar a las mujeres de la columna
+
+DF5 %>% 
+  filter(Sexo == "Mujer") %>% 
+  select(Sexo)
+
+## Otra forma de hacer
+
+DF5[DF5["Sexo"]=="Mujer","Sexo"]
+
+
+## En vez de seleccionar a las mujeres especificar que no se seleccionen a los hombres
+
+DF5 %>% filter(Sexo != "Hombre") %>% 
+  select(Sexo)
+
+## Seleccionar de la varibale escribe tu edad exacta solo a los que tienen 20 años o más
+
+DF5 %>% filter(`Escribe tu edad exacta` >= 20) %>% 
+  select(`Escribe tu edad exacta`)
+
+## Agregando otra variable utilizando ","
+
+DF5 %>% filter(`Escribe tu edad exacta` >= 20,
+               Sexo == "Hombre") %>% 
+  select(`Escribe tu edad exacta`, Sexo)
+
+## Filtrar a los que tienen entre 18 y 21 años
+
+## OPCIÓN USANDO "&"
+
+DF5 %>% 
+  filter(`Escribe tu edad exacta` >= 18 &
+         `Escribe tu edad exacta` <= 21) %>% 
+  select(`Escribe tu edad exacta`)
+
+## OPCIÓN USANDO ","
+
+DF5 %>% 
+  filter(`Escribe tu edad exacta` >= 18,
+         `Escribe tu edad exacta` <= 21) %>% 
+  select(`Escribe tu edad exacta`)
+
+## OPCIÓN USANDO "%in%
+
+DF5 %>% 
+  filter(`Escribe tu edad exacta` %in% 18:21) %>% 
+  select(`Escribe tu edad exacta`)
+
+## OPCIÓN USANDO LA SINTAXIS
+
+DF5[DF5["Escribe tu edad exacta"] >= 18 &
+    DF5["Escribe tu edad exacta"] <= 21,
+     "Escribe tu edad exacta"]
+
+
+## Renombrando de columnas ----
+
+DF6 <- DF5
+
+## APPS
+
+## PASO 1: Crear un vector con los nuevos nombres
+
+apps <- c("Tiktok", "Instagram", "Facebook", "YouTube")
+
+## PASO 2: Renombrar
+
+colnames(DF6)[33:36] <- apps
+
+View(DF6)
+
+## Frases
+
+frases %>% 
+  as_tibble() %>% 
+  separate(col = value,
+           into = c("No sirve", "Sirve"),
+           sep = "\\[") %>% 
+  select("Sirve") %>% 
+  separate(col = Sirve,
+           into = c("Sirve", "No sirve"),
+           sep = "\\]") %>% 
+  select("Sirve") %>% 
+  as_vector()
+
+## Paso 1: Crear un vector con los nuevos nombres
+
+frases2 <-frases %>% 
+  as_tibble() %>% 
+  separate(col = value,
+           into = c("No sirve", "Sirve"),
+           sep = "\\[") %>% 
+  select("Sirve") %>% 
+  separate(col = Sirve,
+           into = c("Sirve", "No sirve"),
+           sep = "\\]") %>% 
+  select("Sirve") %>% 
+  as_vector()
+
+## Paso 2:Renombrar
+
+colnames(DF6)[8:31] <- frases2
+
+View(DF6)
+
+### Pivotado ----
+### Pivot longer
+
+DF7 <- DF6 %>% 
+  select(`Marca temporal`,Sexo,apps) %>% 
+  pivot_longer(cols = apps,
+               names_to = "Apps",
+               values_to = "Time")
+
+### Pivot wider
+
+DF8 <- DF7 %>% 
+  pivot_wider(names_from = "Apps",
+              values_from = "Time")
+
+#(transformación de horas a num)
+
+#strsplit separa los textos
+strsplit(x= DF7$Time, split = ":") %>% 
+  head()
+
+# transformación
+
+DF7$Time <- sapply(X = strsplit(x= DF7$Time, split = ":"),
+                   function(x) {
+                     x <- as.numeric(x)
+                     x[1] + x[2]/60 + x[3]/60^2
+                   })
+
+## GRAFICAS CON GGPLOT ----
+
+### Boxplots
+
+# Boxplot sin GGPLOT
+
+boxplot(DF7$Time, range = 2.5)
+
+# Boxplot con GGPLOT
+
+install.packages(plotly)
+library(plotly)
+
+boxplot <- ggplotly(DF7 %>%
+                      ggplot(mapping = aes(x = Apps,
+                                          y = Time,
+                                          fill = Apps)) +
+                      geom_boxplot() +
+                      theme_minimal() +
+                      labs(title = "Uso de Apps por semana expresados en Hrs",
+                           y= "Horas x semana",
+                           x= "") +
+                      theme(legend.position = "none")
+)
+
+
+ggplotly(DF7 %>% 
+           ggplot(mapping = aes(x = Apps,
+                                y = Time,
+                                fill = Apps)) +
+           geom_boxplot() +
+           facet_wrap(~ Sexo) + ## Para hacer una comparación de una variable se utiliza mediante facet_wrap()
+           theme_minimal() +
+           labs(title = "Uso de Apps por semana expresados en Hrs",
+                y= "Horas x semana",
+                x= "") +
+           theme(legend.position = "none",
+                 panel.grid.major.x = element_blank())
+)
+
+
+ggplotly(DF7 %>% 
+           ggplot(mapping = aes(x = Sexo,
+                                y = Time,
+                                  fill = Sexo)) +
+           geom_boxplot() +
+           facet_wrap(~ Apps, nrow = 1) + ## se utilizo nrow para ponerlo en una sola fila
+           theme_minimal() +
+           labs(title = "Uso de Apps por semana expresados en Hrs",
+                y= "Horas x semana",
+                x= "") +
+           theme(legend.position = "none",
+                 panel.grid.major.x = element_blank())
+)
+
+
+
+
+## Grafico de Violin
+
+ggplotly(
+  DF7 %>% 
+    ggplot(mapping = aes(x = Apps,
+                         y = Time,
+                         fill = Apps)) +
+    geom_violin() +
+    theme_minimal() +
+    labs(title = "Uso de Apps por semana expresados en Hrs",
+         y= "Horas x semana",
+         x= "") +
+    theme(legend.position = "none",
+          panel.grid.major.x = element_blank())
+    
+)
+
+## Grafico de densidad
+
+DF7 %>% 
+  ggplot(mapping = aes(x = Time)) +
+  geom_density() +
+  theme_linedraw()
+
+
+  DF7 %>% 
+    ggplot(mapping = aes(x = Time,
+                         fill = Sexo)) +
+    geom_density(alpha = 0.5) +
+    facet_wrap(~ Apps) +
+    scale_fill_manual(values = c("#219ebc","#ffc2d1")) + ## PONER COLORES A LAS VARIABLES
+    labs(title = "Distribución del consumo de Apps",
+         subtitle = "Horas en los últimos 7 días",
+         caption = "Conclusión: Hombres heavy users en YouTube",
+         x = "Cantidad de horas") +
+    theme_minimal() +
+    theme(legend.position = "top", # PONE LA VARIABLE ARRIBA AL CENTRO
+          panel.grid.minor.x = element_blank(), # ELIMINA LAS LINEAS SECUNDARIAS EN LOS GRAFICOS DEL EJE X
+          panel.grid.minor.y = element_blank(), # ELIMINA LAS LINEAS SECUNDARIAS EN LOS GRAFICOS DEL EJE Y
+          legend.title = element_blank(), ## ELIMINA EL NOMBRE DE LA VARIABLE
+          plot.title = element_text(color = "#9a031e")) ## CAMBIA DE COLOR EL TITULO
+
+    
+## OTRA VERSION 
+  
+  DF7 %>% 
+    ggplot(mapping = aes(x = Time,
+                         fill = Sexo)) +
+    geom_density(alpha = 0.5,
+                 fill = "green") +
+    facet_wrap(~ Apps + Sexo,
+               nrow = 2,
+               scales = "free_y") +
+    theme_minimal() +
+    theme(legend.position = "bottom") 
+
+
+
+## Interactivo
+
+ggplotly(
+  DF7 %>% 
+    ggplot(mapping = aes(x = Time,
+                         fill = Sexo)) +
+    geom_density(alpha = 0.5) +
+    facet_wrap(~ Apps) +
+    theme_minimal() +
+    theme(legend.position = "none")
+)
+
+
+## DETECCIÓN DE OUTLIERS ----
+
+### Boxplot
+boxplot ## ES EL 1ER GRAFICO EL DE LA CELDA 346, YA QUE SE HIZO UNA VARIABLE PARA NO ESTAR
+        ## ESCRIBIENDO TODO EL TIEMPO EL CODIGO Y LLAMARLA SOLO CON "boxplot"
+
+DF7.1 <- DF7 %>% 
+  mutate(outlier = case_when(
+    Apps == "Facebook" & Time > 10 ~ "SI",
+    Apps == "Instagram" & Time > 13.28 ~ "SI",
+    Apps == "Tiktok" & Time > 15.58 ~ "SI",
+    Apps == "YouTube" & Time > 8.18 ~ "SI",
+    .default = "NO"
+  ))
+
+### Uso de group_by & summarise
+
+DF7.1 %>% 
+  filter(outlier == "NO") %>% ## Se filtra por los que no son outliers
+  group_by(Apps) %>% 
+  summarise(media = mean(Time),
+            desviación = sd(Time),
+            mediana = median(Time),
+            minimo = min(Time),
+            maximo = max(Time))
+
+DF7.1 %>% 
+  filter(outlier == "NO") %>% 
+  group_by(Apps, Sexo) %>% 
+  summarise(media = mean(Time)) %>% 
+  pivot_wider(names_from = Sexo,
+              values_from = media)
+
+## Valores normalizados
+
+DF7 %>% 
+  group_by(Apps) %>% ## SE AGRUPA POR APP, ASI CALCULA POR SEPARADO Y NO TODOS LOS DATOS JUNTOS
+  mutate(time_z = scale(Time),
+         outlier = ifelse(test = time_z > 2,
+                          yes = "SI",
+                          no = "NO")) %>%
+  summarise(media = mean(Time))
