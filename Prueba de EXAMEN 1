@@ -1,0 +1,23 @@
+library(tidyverse)
+
+## Genere una tabla que muestre el promedio de la probabilidad de cáncer cruzada por la variable FUMA
+
+DF2 <- tibble(
+  FUMA = c("SI","SI","SI","SI","NO","NO","NO","NO"),
+  Probabilidad_cancer = c(75,65,50,80,30,20,55,40)
+)
+
+DF2 %>% 
+  group_by(FUMA) %>% 
+  summarise(media = mean(Probabilidad_cancer))
+
+###Imagine que tiene una variable numerica llamada cantidad_comprada en un data.frame llamado DF
+### y desea crear una variable categórica llamada compra_mayor_100 la cual asumirá 2 valores
+### SÍ = para los valores mayores a 100
+### NO = para los valores menores a 100
+### Escriba el código para crear esta variable
+
+DF %>% 
+  mutate(compra_mayor_100 = ifelse(test = cantidad_comprada > 100;
+                                   yes = "SÍ",
+                                   no = "NO"))
