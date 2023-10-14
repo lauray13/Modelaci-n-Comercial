@@ -72,7 +72,7 @@ plot(rules,method = "graph", engine = "htmlwidget")
 #flecha sale esta en la mano izquierda
 #cuando la flecha entra esta en la mano derecha
 
-## Fija la mano izquierda
+## Fijar la mano izquierda
 
 rules.lhs <- apriori(data = DF.trans,
                      parameter = list(supp = 0.001, 
@@ -84,6 +84,19 @@ rules.lhs <- apriori(data = DF.trans,
 
 inspect(rules.lhs)
 plot(rules.lhs,method = "graph", engine = "htmlwidget")
+
+## Fijar la mano derecha
+
+rules.rhs <- apriori(data = DF.trans,
+                     parameter = list(supp = 0.001, 
+                                      conf = 0.07, 
+                                      minlen = 2, 
+                                      maxlen = 2),
+                     appearance = list(rhs = "sausage",
+                                       default = "lhs"))
+
+inspect(rules.rhs)
+plot(rules.rhs,method = "graph", engine = "htmlwidget")
 
 
 
