@@ -10,43 +10,32 @@ library(arules)
 library(arulesViz)
 library(viridis)
 
-## SE INSTALAN LAS LIBRERIAS QUE SE VAN A UTILIZAR
-
 ## Importar el DF ---
 
 DF <- read.csv(text = gsheet2text(url = "https://docs.google.com/spreadsheets/d/1NTjA8nrmcWltvZn4oq5KJK7-R4Mb-_is_5vVsoBDCv0/edit?usp=sharing",
                format = "csv"),
 stringsAsFactors = F)
 
-## SE IMPORTA LA BASE DE DATOS QUE ES EL LINK
 
 #Crear las canastas ----
 
-# SE CREAN LAS CANASTAS O BASKET (ESTA EN LA LECUTRA QUE ES)
-
 # Asignar un ID de canasta
-# SE CREA UNA NUEVA COLUMNA TOMANDO SOLO LAS VARIABLES MEMBER_NUMBER Y DATE, ESTAS SE SEPARAN POR "_" Y DE AHI SOLO SE SELECCIONAN
-# BASKET.ID Y ITEMDESCRIPTION
 
 DF1 <- DF %>% 
   mutate(basket.id = paste(Member_number,Date, sep = "_")) %>% 
   select(basket.id,itemDescription)
 
 ## Crear una lista
-# SE HACE UNA LISTA PARA SABER CUANTOS ITEMS SE COMPRARON POR BASKET ID
 
 DF.list <- split(x = DF1$itemDescription,
                  f = DF1$basket.id)
 
 ## Formato transaction
 
-# SE VUELVE FORMATO DE TRANSACCIÓN
-
 DF.trans <- as(object = DF.list,
                Class = "transactions")
 
 # Analisis de lo más vendido
-# SACAMOS CUALES SON LOS 15 PRODUCTOS MÁS VENDIDOS Y HACEMOS UN GRAFIQUITO
 
 itemFrequencyPlot(x = DF.trans,
                   topN = 15,
@@ -63,9 +52,9 @@ rules <- apriori(data = DF.trans,
 inspect(rules)
 
 ##coverage frecuencia en la que se vende el producto de la mano izquierda en el total de las transacciones
-##confidence frecuencia en la que se vende el producto de la mano derecha cuando se vende el producto de la mano derecha
+##confidence frecuencia en la que se vende el producto de la mano derecha cuando se vende el producto de la mano izquierda
 ##support es en que medida se venden los 2 productos juntos
-##count es la cantidad de veces que se ha visto eso
+##count es la cantidad de veces que se ha visto eso en la base de transacciones
 
 plot(rules,method = "graph", engine = "htmlwidget")
 
@@ -85,7 +74,7 @@ rules.lhs <- apriori(data = DF.trans,
 inspect(rules.lhs)
 plot(rules.lhs,method = "graph", engine = "htmlwidget")
 
-## Fijar la mano derecha
+## Fijar la mano izquierda
 
 rules.rhs <- apriori(data = DF.trans,
                      parameter = list(supp = 0.001, 
