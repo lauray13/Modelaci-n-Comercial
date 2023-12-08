@@ -1,0 +1,531 @@
+# Carga de bibliotecas
+install.packages("gsheet")
+install.packages("tidyverse")
+install.packages("dplyr")
+library(gsheet)
+library(tidyverse)
+library(dplyr)
+
+# Carga de datos desde Google Sheets
+url_google <- "https://docs.google.com/spreadsheets/d/1lT3D50FkgnEimkj9_1yK6nDi4UyCbwKR9l1j83w-hd4/edit?usp=sharing"
+DF <- read.csv(text = gsheet2text(url = url_google), check.names = F)
+
+# Estructura del DataFrame
+glimpse(DF) # un resumen del DF y muestra los primeros datos
+view(DF) # muestra el DF
+str(DF) ## mostrar que tipo de variable es cada columna
+# si es chr (texto)
+# si es num (numero)
+# si es int (numero pero con decimales)
+
+# Valores faltantes?
+colSums(is.na(DF)) #muestra cuantos N/A tiene cada columna
+DF1 <- DF %>% filter(!is.na(PAGOS_MINIMOS) & !is.na(LIMITE_CREDITO)) ## Eliminar las filas completas que contengan N/A
+colSums(is.na(DF1))
+
+# Analisis descriptivo
+summary(DF1)
+glimpse(DF1)
+
+#Normalizar 
+DF1$SALDO_norm = scale(DF1$SALDO) #scale es para normalizar los valores
+DF1$COMPRAS_norm = scale(DF1$COMPRAS)
+DF1$LIMITE_CREDITO_norm = scale(DF1$LIMITE_CREDITO)
+DF1$COMPRAS_UNICAS_norm = scale(DF1$COMPRAS_UNICAS)
+DF1$COMPRAS_CUOTAS_norm = scale(DF1$COMPRAS_CUOTAS)
+DF1$ANTICIPO_EFECTIVO_norm = scale(DF1$ANTICIPO_EFECTIVO)
+DF1$TRANSAC_ANTICIPO_EFECTIVO_norm = scale(DF1$TRANSAC_ANTICIPO_EFECTIVO)
+DF1$TRANSAC_COMPRAS_norm = scale(DF1$TRANSAC_COMPRAS)
+DF1$PAGOS_norm = scale(DF1$PAGOS)
+DF1$PAGOS_MINIMOS_norm = scale(DF1$PAGOS_MINIMOS)
+
+tibble(
+  original = DF1$SALDO,
+  normalizado = DF1$SALDO_norm
+) %>%
+  print(n = 20)
+# (convirtiendo el DF en tibble)
+DF2 <- DF1 %>% as_tibble()
+
+library(scales)
+
+# Transformación a escala de rango
+DF2$LIMITE_CREDITO_rango = rescale(DF2$LIMITE_CREDITO)
+DF2$SALDO_rango = rescale(DF2$SALDO)
+DF2$PAGOS_rango = rescale(DF2$PAGOS)
+
+#scale() realiza la estandarización/normalización de los datos (media cero y desviación estándar uno),
+#mientras que rescale() simplemente cambia el rango de los valores, 
+#manteniendo la distribución de los datos pero en un nuevo intervalo.
+
+# Visualización de los resultados
+tibble(
+  LIMITE_CREDITO_original = DF2$LIMITE_CREDITO,
+  LIMITE_CREDITO_rango = DF2$LIMITE_CREDITO_rango,
+  SALDO_original = DF2$SALDO,
+  SALDO_rango = DF2$SALDO_rango,
+  PAGOS_original = DF2$PAGOS,
+  PAGOS_rango = DF2$PAGOS_rango
+) %>%
+  print(n = 10)
+
+# Creación de agrupaciones para LIMITE_CREDITO
+DF2$LIMITE_CREDITO_cat = cut(DF2$LIMITE_CREDITO,
+                             breaks = c(-Inf, 5000, 10000, Inf),
+                             labels = c("Bajo", "Medio", "Alto"))
+
+# Creación de agrupaciones para SALDO
+DF2$SALDO_cat = cut(DF2$SALDO,
+                    breaks = c(-Inf, 1000, 5000, Inf),
+                    labels = c("Bajo", "Medio", "Alto"))
+
+# Creación de agrupaciones para PAGOS
+DF2$PAGOS_cat = cut(DF2$PAGOS,
+                    breaks = c(-Inf, 500, 2000, Inf),
+                    labels = c("Bajo", "Medio", "Alto"))
+
+# Visualización de los resultados
+tibble(
+  LIMITE_CREDITO = DF2$LIMITE_CREDITO,
+  LIMITE_CREDITO_cat = DF2$LIMITE_CREDITO_cat,
+  SALDO = DF2$SALDO,
+  SALDO_cat = DF2$SALDO_cat,
+  PAGOS = DF2$PAGOS,
+  PAGOS_cat = DF2$PAGOS_cat
+) %>%
+  print(n = 10)
+
+#pivotado
+## Pivot longer 
+## Comparación de Frecuencias FREC_COMPRAS, FREC_COMPRAS_UNICAS, FREC_COMPRAS_CUOTAS
+DF2_frecuencia_long <- DF2 %>%
+  pivot_longer(
+    cols = c(FREC_COMPRAS, FREC_COMPRAS_UNICAS, FREC_COMPRAS_CUOTAS), #crea un vector con las frecuencias
+    names_to = "tipo_frecuencia",
+    values_to = "valor_frecuencia"
+  )
+## Pivot wider
+## Quieres revertir al formato original o crear un resumen por cliente.
+#df_wide <- df_long %>%
+#pivot_wider(
+#names_from = tipo_transaccion,
+#values_from = monto
+)
+
+
+#GRAFICAS
+
+install.packages("ggplot2")
+install.packages("plotly")
+
+library(ggplot2)
+library(plotly)
+
+# Crear el boxplot con ggplot2
+boxplot_gg <- ggplot(DF2, aes(x = "", y = SALDO, fill = "SALDO")) +
+  geom_boxplot() +
+  theme_classic() +
+  labs(title = "Distribución del Saldo en la Cuenta",
+       y = "Saldo",
+       x = "") +
+  theme(legend.position = "none")
+
+# Convertirlo a un gráfico interactivo con plotly(opcional)
+boxplot_interactivo <- ggplotly(boxplot_gg)
+
+# Mostrar el gráfico interactivo
+boxplot_interactivo
+# boxplot 
+# Primero, categorizamos LIMITE_CREDITO en rangos
+DF2$LIMITE_CREDITO_cat <- cut(DF2$LIMITE_CREDITO,
+                              breaks = quantile(DF2$LIMITE_CREDITO, probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
+                              labels = c("Bajo", "Medio", "Alto"),
+                              include.lowest = TRUE)
+
+# Luego, creamos el boxplot
+boxplot_gg <- ggplot(DF2, aes(x = LIMITE_CREDITO_cat, y = SALDO, fill = LIMITE_CREDITO_cat)) +
+  geom_boxplot() +
+  facet_wrap(~ LIMITE_CREDITO_cat, nrow = 1) +
+  theme_minimal() +
+  labs(title = "Distribución del Saldo por Rango de Límite de Crédito",
+       y = "Saldo",
+       x = "Rango de Límite de Crédito") +
+  theme(legend.position = "none",
+        panel.grid.major.x = element_blank())
+
+# Convertirlo a un gráfico interactivo con plotly
+boxplot_interactivo <- ggplotly(boxplot_gg)
+
+# Mostrar el gráfico interactivo
+boxplot_interactivo
+
+#violin
+
+# Gráfico de violín para SALDO
+violin_saldo <- ggplot(DF2, aes(x = "", y = SALDO, fill = "SALDO")) +
+  geom_violin() +
+  theme_classic() +
+  labs(title = "Distribución del Saldo",
+       y = "Saldo",
+       x = "") +
+  theme(legend.position = "none")
+
+# Convertir a gráfico interactivo
+violin_saldo_interactivo <- ggplotly(violin_saldo)
+violin_saldo_interactivo
+
+#violin multiple
+# Transformar a formato largo
+DF2_long <- DF2 %>%
+  pivot_longer(
+    cols = c(SALDO, COMPRAS, LIMITE_CREDITO, PAGOS),
+    names_to = "Variable",
+    values_to = "Valor"
+  )
+
+# Gráfico de violín combinado
+violin_combinado <- ggplot(DF2_long, aes(x = Variable, y = Valor, fill = Variable)) +
+  geom_violin() +
+  theme_classic() +
+  labs(title = "Distribución de Variables Financieras",
+       y = "Valor",
+       x = "Variable") +
+  theme(legend.position = "none")
+
+# Convertir a gráfico interactivo
+violin_combinado_interactivo <- ggplotly(violin_combinado)
+
+# Mostrar el gráfico interactivo
+violin_combinado_interactivo
+
+#Grafico de densidad
+
+# Gráfico de densidad para SALDO
+ggplot(DF2, aes(x = SALDO)) +
+  geom_density(alpha = 0.75, fill = "#80DAEB") +
+  labs(title = "Distribución del Saldo",
+       x = "Saldo",
+       y = "Densidad") +
+  theme_minimal()
+mean(DF2$SALDO)
+median(DF2$SALDO)
+
+# Repetir para COMPRAS, LIMITE_CREDITO y PAGOS
+
+# Transformar a formato largo
+DF2_long <- DF2 %>%
+  pivot_longer(
+    cols = c(SALDO, COMPRAS, LIMITE_CREDITO, PAGOS),
+    names_to = "Variable",
+    values_to = "Valor"
+  )
+
+# Gráfico de densidad combinado
+ggplot(DF2_long, aes(x = Valor, fill = Variable)) +
+  geom_density(alpha = 0.75) +
+  scale_fill_manual(values = c("#264653", "#e76f51", "#2a9d8f", "#f4a261")) +
+  labs(title = "Distribución de Variables Financieras",
+       x = "Valor",
+       y = "Densidad") +
+  facet_wrap(~ Variable) +
+  theme_minimal() +
+  theme(legend.position = "top",
+        legend.title = element_blank())
+
+# Detección de outliers para SALDO
+DF2 <- DF2 %>%
+  mutate(SALDO_z = scale(SALDO),
+         outlier = ifelse(test = SALDO_z > 2 | SALDO_z < -2,
+                          yes = "SI",
+                          no = "NO"))
+
+# Análisis agregado excluyendo outliers
+analisis_saldo <- DF2 %>%
+  filter(outlier == "NO") %>%
+  summarise(media_saldo = mean(SALDO),
+            mediana_saldo = median(SALDO),
+            desviacion_saldo = sd(SALDO),
+            min_saldo = min(SALDO),
+            max_saldo = max(SALDO))
+
+print(analisis_saldo)
+
+
+### PCA ###
+
+library(dplyr)
+
+# Asegúrate de que estas son las variables correctas para tu análisis
+variables_correlacion <- c("SALDO", "COMPRAS", "LIMITE_CREDITO", "PAGOS", "PAGOS_MINIMOS")
+
+# Calcula la matriz de correlaciones
+matriz_correlaciones <- DF2 %>%
+  select(all_of(variables_correlacion)) %>%
+  cor(method = "spearman")
+
+# Ver la matriz de correlaciones
+print(matriz_correlaciones)
+
+install.packages("reshape2")
+library(ggplot2)
+library(reshape2)
+
+# Convertir la matriz de correlaciones a un formato largo para la visualización
+matriz_correlaciones_long <- melt(matriz_correlaciones)
+
+# Crear un gráfico de calor para la matriz de correlaciones
+ggplot(matriz_correlaciones_long, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(x = "", y = "", title = "Matriz de Correlaciones", fill = "Correlación") +
+  coord_fixed()
+
+
+# Matriz con todas las variables
+variables_correlacion <- c("SALDO", "FREC_SALDO", "COMPRAS", "COMPRAS_UNICAS", 
+                           "COMPRAS_CUOTAS", "ANTICIPO_EFECTIVO", "FREC_COMPRAS", "FREC_COMPRAS_UNICAS", 
+                           "FREC_COMPRAS_CUOTAS", "TRANSAC_ANTICIPO_EFECTIVO", "TRANSAC_COMPRAS", 
+                           "LIMITE_CREDITO", "PAGOS", "PAGOS_MINIMOS", "PORC_PAGO_TOTAL", "PLAZO")
+
+# Calcula la matriz de correlaciones
+matriz_correlaciones <- cor(DF2 %>% select(all_of(variables_correlacion)), use = "complete.obs", method = "spearman")
+
+# Ver la matriz de correlaciones
+print(matriz_correlaciones)
+# Convertir la matriz de correlaciones a un formato largo para la visualización
+matriz_correlaciones_long <- reshape2::melt(matriz_correlaciones)
+
+# Crear un gráfico de calor para la matriz de correlaciones
+ggplot(matriz_correlaciones_long, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  labs(x = "", y = "", title = "Matriz de Correlaciones", fill = "Correlación") +
+  coord_fixed()
+
+#PCA
+
+# 1. Dimensión de Gasto
+# Dado que esta dimensión incluye variables como COMPRAS, COMPRAS_UNICAS y COMPRAS_CUOTAS, podrías comenzar con ncp = 2. Esto te permitirá ver si la mayor parte de la varianza se explica con solo dos componentes, lo cual es común en conjuntos de datos donde las variables están altamente correlacionadas.
+if (!require(FactoMineR)) install.packages("FactoMineR")
+library(FactoMineR)
+
+# Ejemplo para la Dimensión de Gasto
+variables_gasto <- c("COMPRAS", "COMPRAS_UNICAS", "COMPRAS_CUOTAS", "TRANSAC_COMPRAS")
+
+# Realizar PCA para la Dimensión de Gasto
+PCA_gasto <- FactoMineR::PCA(
+  DF2 %>% select(all_of(variables_gasto)),
+  ncp = 1  # Puedes ajustar el número de componentes
+)
+
+# Eigenvalues y variación explicada
+PCA_gasto$eig
+
+# Correlación entre dimensiones y variables originales
+PCA_gasto$var$cor
+
+# Valores de las dimensiones
+head(PCA_gasto$ind$coord)
+
+# Comparar valores originales con valores de la dimensión
+tibble(
+  dim = PCA_gasto$ind$coord,
+  DF2 %>% select(all_of(variables_gasto))
+) %>% View()
+
+# 2. Actividad de Debito
+
+if (!require(FactoMineR)) install.packages("FactoMineR")
+library(FactoMineR)
+
+# Ejemplo para la Dimensión de Gasto
+variables_debito<- c("SALDO", "ANTICIPO_EFECTIVO", "TRANSAC_ANTICIPO_EFECTIVO", "PAGOS_MINIMOS" )
+
+# Realizar PCA para la Dimensión de Gasto
+PCA_debito <- FactoMineR::PCA(
+  DF2 %>% select(all_of(variables_debito)),
+  ncp = 1  # Puedes ajustar el número de componentes
+)
+# Eigenvalues y variación explicada
+PCA_debito$eig
+
+# Correlación entre dimensiones y variables originales
+PCA_debito$var$cor
+
+# Valores de las dimensiones
+head(PCA_debito$ind$coord)
+
+# Comparar valores originales con valores de la dimensión
+tibble(
+  dim = PCA_debito$ind$coord,
+  DF2 %>% select(all_of(variables_debito))
+) %>% View()
+# 3. Dimensión de Credito
+# Para ANTICIPO_EFECTIVO y TRANSAC_ANTICIPO_EFECTIVO, podrías considerar ncp = 1, ya que solo hay dos variables y es probable que estén relacionadas directamente.
+if (!require(FactoMineR)) install.packages("FactoMineR")
+library(FactoMineR)
+
+#Ejemplo para la Dimensión de Comportamiento de Anticipo de Efectivo
+variables_credito <- c("ANTICIPO_EFECTIVO", "TRANSAC_ANTICIPO_EFECTIVO", "SALDO")
+
+# Realizar PCA para la Dimensión de Comportamiento de Anticipo de Efectivo
+PCA_credito <- FactoMineR::PCA(
+  DF2 %>% select(all_of(variables_credito)),
+  ncp = 1,  # Usamos 1 porque solo hay dos variables
+)
+
+# Eigenvalues y variación explicada
+PCA_credito$eig
+
+# Correlación entre dimensiones y variables originales
+PCA_credito$var$cor
+
+# Valores de las dimensiones
+head(PCA_credito$ind$coord)
+
+# Comparar valores originales con valores de la dimensión
+tibble(
+  dim = PCA_credito$ind$coord,
+  DF2 %>% select(all_of(variables_credito))
+) %>% View()
+# 4. Dimensión de Actividad
+# En el caso de FREC_COMPRAS y TRANSAC_COMPRAS, ncp = 1 podría ser suficiente, dado que ambas variables están relacionadas con la frecuencia y actividad de las transacciones.
+if (!require(FactoMineR)) install.packages("FactoMineR")
+library(FactoMineR)
+
+#Ejemplo para la Dimensión de Actividad
+variables_actividad <- c("FREC_COMPRAS", "TRANSAC_COMPRAS", "COMPRAS", "COMPRAS_CUOTAS")
+
+# Realizar PCA para la Dimensión de Actividad
+PCA_actividad <- FactoMineR::PCA(
+  DF2 %>% select(all_of(variables_actividad)),
+  ncp = 1,  # Usamos 1 porque solo hay dos variables
+)
+# Eigenvalues y variación explicada
+PCA_actividad$eig
+
+# Correlación entre dimensiones y variables originales
+PCA_actividad$var$cor
+
+# Valores de las dimensiones
+head(PCA_actividad$ind$coord)
+
+# Comparar valores originales con valores de la dimensión
+tibble(
+  dim = PCA_actividad$ind$coord,
+  DF2 %>% select(all_of(variables_actividad))
+) %>% View()
+
+#Agregar dimensiones al dataframe  
+
+library(dplyr)
+
+
+DF3 <- DF2 %>%
+  # Agregar la primera y segunda dimensiones de Gasto
+  mutate(dim_gasto = PCA_gasto$ind$coord[,1]) %>%
+  # Agregar la primera y segunda dimensiones de Crédito
+  mutate(dim_debito = PCA_debito$ind$coord[,1]) %>%
+  # Agregar la dimensión de Comportamiento de Anticipo de Efectivo
+  mutate(dim_credito = PCA_credito$ind$coord[,1]) %>%
+  # Agregar la dimensión de Actividad
+  mutate(dim_actividad = PCA_actividad$ind$coord[,1])
+
+# Ver las primeras filas del DataFrame enriquecido
+head(df)
+##cluster
+
+#Clustering
+install.packages("NbClust")
+install.packages("FactoMineR")
+library(NbClust)
+library(FactoMineR)
+library(tidyverse)
+
+# Asegúrate de que df es tu DataFrame enriquecido con las dimensiones de PCA
+dimensiones <- c("dim_gasto", "dim_debito", 
+                 "dim_credito", "dim_actividad")
+
+# Realizar la clusterización
+clustering <- NbClust(
+  data = DF3 %>% select(all_of(dimensiones)),
+  distance = "euclidean",
+  method = "ward.D2",
+  index = "dunn"
+)
+
+# Ver los resultados del índice de Dunn
+clustering$All.index
+
+#(opcional) Diagramas extra para ver cuantos cluster usar
+install.packages("factoextra")
+library(cluster)
+library(factoextra)
+
+#opcional
+
+# Método del Codo
+set.seed(123) # Para reproducibilidad
+fviz_nbclust(DF3 %>% select(all_of(dimensiones)), kmeans, method = "wss") +
+  geom_vline(xintercept = 4, linetype = 2) +
+  labs(subtitle = "Método del Codo")
+
+# Análisis de Silueta
+silhouette <- fviz_nbclust(DF3 %>% select(all_of(dimensiones)), kmeans, method = "silhouette")
+print(silhouette)
+
+
+# Creación de 4 Clusters
+clustering.4 <- NbClust(
+  data = DF3 %>% select(all_of(dimensiones)),
+  distance = "euclidean",
+  method = "ward.D2",
+  index = "dunn",
+  
+  # Limitar la iteración a 4 clusters
+  min.nc = 4,
+  max.nc = 4
+)
+
+# Tabla que muestra el peso de cada segmento
+table(clustering.4$Best.partition)
+
+# Creando DF12 con asignación de segmentos
+DF4 <- DF3 %>% 
+  mutate(segmento = as.factor(clustering.4$Best.partition))
+
+# Resumen de los segmentos
+summary(DF4$segmento)
+
+# Asegúrate de que DF12 es tu DataFrame actualizado con la columna 'segmento'
+# Aplicar la transformación a rango 0-1
+DF5 <- DF4 %>%
+  mutate_at(.vars = dimensiones,
+            .funs = scales::rescale)
+# Creación de DF14 y Resumen Estadístico
+DF6 <- DF5 %>% 
+  group_by(segmento) %>% 
+  summarise(
+    dim_gasto = mean(dim_gasto),
+    dim_debito = mean(dim_debito),
+    dim_credito = mean(dim_credito),
+    dim_actividad = mean(dim_actividad)
+  ) %>% 
+  column_to_rownames(var = "segmento")
+
+# Visualización de DF14
+DF6
+
+# Análisis de Correspondencias (CA) para el Mapa Perceptual
+FactoMineR::CA(DF6)
+
+
+# Cargar el paquete necesario
+if (!require(FactoMineR)) install.packages("FactoMineR")
+library(FactoMineR)
+
+# Realizar el Análisis de Correspondencias
+ca_result <- CA(DF6)
+print(ca_result$eig)
